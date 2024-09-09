@@ -95,18 +95,18 @@
      * @returns {boolean}
      */
     Convert.prototype.checkJson = function (value) {
-        var re = /^\{[\s\S]*\}$|^\[[\s\S]*\]$/;
+        //var re = /^\{[\s\S]*\}$|^\[[\s\S]*\]$/;
         // 类型为string
         if (typeof value !== 'string') {
             return false;
         }
         // 正则验证
-        if (!re.test(value)) {
+        /*if (!re.test(value)) {
             return false;
-        }
+        }*/
         // 是否能解析
         try {
-            value = "\"" + value + "\"";
+            //value = "\"" + value + "\"";
             JSON.parse(value);
         } catch (err) {
             return false;
@@ -235,8 +235,27 @@
                 args = this.serverParseArgs(getQuery);
             }
         } else if ('POST' === request.method) {
-            var postQuery = request.post;
-            args = this.serverParseArgs(postQuery);
+            var contentType = request.headers['Content-Type'];
+            if ('application/x-www-urlencoded' == contentType) {
+                var postQuery = request.postRaw;
+                args = this.serverParseArgs(postQuery);
+            } else {
+                // 默认是json格式，要用request.post接收
+                var postJson = request.post;
+                if (postJson && typeof postJson == 'string') {
+                    try {
+                        args = JSON.parse(postJson);
+                    } catch (err) {
+                        console.log('request data is not json.', err);
+                        return args;
+                    }
+                } else {
+                    args = postJson;
+                }
+                if (args.opt && typeof args.opt !== 'string') {
+                    args.opt = JSON.stringify(args.opt);
+                }
+            }
         }
         return args;
     };
@@ -287,7 +306,7 @@
                 case 'base64':
                 default:
                     var base64 = page.renderBase64('PNG');
-                    return base64;
+                    return 'data:image/png;base64,' + base64;
 
             }
         };
@@ -362,6 +381,7 @@
      * @param params 参数
      */
     function createEchartsDom(params) {
+        $('<meta>').attr('charset', 'UTF-8').appendTo(document.head);
         // 动态加载js，获取options数据
         $('<script>')
             .attr('type', 'text/javascript')
@@ -384,6 +404,7 @@
             }).appendTo(document.body);
 
         var eChart = echarts.init(container[0]);
+        // eChart.on('finished', function(){console.log(eChart.getDataURL({type:'png'}))}); // echarts原生支持导出图片
         eChart.setOption(options);
     }
 
